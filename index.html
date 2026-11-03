@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ABCs Behind the Bushes</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Fredoka for cheerful UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Custom Comic Sans MS Font Definition */
+    @font-face {
+      font-family: 'Comic Sans MS Custom';
+      src: url('comic-sans-ms.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    body {
+      font-family: 'Fredoka', cursive, sans-serif;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #111827;
+    }
+
+    .font-letter {
+      font-family: 'Comic Sans MS Custom', 'Comic Sans MS', 'Comic Sans', cursive, sans-serif;
+    }
+
+    .letter-stroke-white {
+      color: #ffffff;
+      -webkit-text-stroke: 4px #1a3d1e;
+      paint-order: stroke fill;
+      filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.4));
+    }
+
+    .letter-stroke-title {
+      color: #ffeb3b;
+      -webkit-text-stroke: 5px #1b4d3e;
+      paint-order: stroke fill;
+      filter: drop-shadow(0px 4px 0px rgba(27,77,62,0.5));
+    }
+
+    .game-bg {
+      background-image: url('Game Background.png');
+      background-size: cover;
+      background-position: center bottom;
+      background-repeat: no-repeat;
+    }
+
+    @keyframes rustle {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      20% { transform: rotate(-3deg) scale(1.03); }
+      40% { transform: rotate(3deg) scale(1.03); }
+      60% { transform: rotate(-2deg) scale(1.02); }
+      80% { transform: rotate(2deg) scale(1.01); }
+    }
+
+    @keyframes shakeWrong {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-12px) rotate(-4deg); }
+      40% { transform: translateX(12px) rotate(4deg); }
+      60% { transform: translateX(-8px) rotate(-2deg); }
+      80% { transform: translateX(8px) rotate(2deg); }
+    }
+
+    @keyframes starPop {
+      0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+      70% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .animate-rustle { animation: rustle 0.5s ease-in-out; }
+    .animate-wrong { animation: shakeWrong 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+    
+    /* Active Audio State: Bush scales up with a bright yellow glow */
+    .bush-box {
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
+    }
+
+    .bush-box.is-playing { 
+      transform: scale(1.22) !important;
+      filter: drop-shadow(0px 0px 25px #ffeb3b) drop-shadow(0px 0px 10px #f59e0b) !important;
+    }
+
+    /* Disable hover zoom scale when audio playback state is active across container */
+    .is-playing-audio .bush-box {
+      transform: scale(1);
+    }
+    .is-playing-audio .group:hover .bush-box {
+      transform: scale(1);
+    }
+
+    .btn-bounce {
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .btn-bounce:active {
+      transform: scale(0.88) !important;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .glass-celebration {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.05);
+      border-radius: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #81c784;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none bg-slate-900">
+
+  <!-- Main Game Frame -->
+  <div id="game-frame" class="relative w-screen h-screen overflow-hidden game-bg flex flex-col justify-between">
+    
+    <!-- SVG Vector Fallback Background -->
+    <div id="svg-bg-fallback" class="absolute inset-0 -z-10 hidden">
+      <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 600">
+        <rect width="1000" height="380" fill="#81d4fa" />
+        <ellipse cx="200" cy="120" rx="90" ry="40" fill="#ffffff" opacity="0.9" />
+        <ellipse cx="750" cy="90" rx="120" ry="50" fill="#ffffff" opacity="0.9" />
+        <rect y="380" width="1000" height="120" fill="#7cb342" />
+        <rect y="500" width="1000" height="100" fill="#d7ccc8" />
+      </svg>
+    </div>
+
+    <!-- COVER / SETUP SCREEN -->
+    <div id="cover-screen" class="absolute inset-0 z-30 flex flex-col items-center justify-between p-4 sm:p-6 glass-celebration">
+      
+      <!-- Top Control Bar -->
+      <div class="w-full flex justify-end">
+        <button onclick="toggleFullscreen()" class="btn-bounce bg-white/80 p-2.5 rounded-full shadow-md text-emerald-800 hover:bg-white focus:outline-none">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Title Header -->
+      <div class="text-center my-auto">
+        <h1 class="text-4xl sm:text-6xl md:text-7xl font-bold letter-stroke-title tracking-wide leading-tight">
+          ABCs Behind the Bushes
+        </h1>
+      </div>
+
+      <!-- Setup Box -->
+      <div class="w-full max-w-xl glass-panel rounded-3xl p-4 sm:p-6 border-4 border-emerald-400 shadow-2xl space-y-4 my-auto">
+        
+        <!-- Letter Case Selector -->
+        <div>
+          <label class="block text-emerald-900 font-bold text-center text-sm sm:text-base mb-2">LETTER CASE</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setCase('uppercase')" id="btn-case-up" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-500 bg-emerald-500 text-white shadow-md">
+              ABC
+            </button>
+            <button onclick="setCase('lowercase')" id="btn-case-low" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-200 bg-white text-emerald-800">
+              abc
+            </button>
+            <button onclick="setCase('both')" id="btn-case-both" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-200 bg-white text-emerald-800">
+              Aa Bb
+            </button>
+          </div>
+        </div>
+
+        <!-- Bush Count Selector (Updated to 4 Options: 2, 3, 4, 5) -->
+        <div>
+          <label class="block text-emerald-900 font-bold text-center text-sm sm:text-base mb-2">BUSHES PER ROUND</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button onclick="setBushes(2)" id="btn-bush-2" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-200 bg-white text-emerald-800">
+              2
+            </button>
+            <button onclick="setBushes(3)" id="btn-bush-3" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-500 bg-emerald-500 text-white shadow-md">
+              3
+            </button>
+            <button onclick="setBushes(4)" id="btn-bush-4" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-200 bg-white text-emerald-800">
+              4
+            </button>
+            <button onclick="setBushes(5)" id="btn-bush-5" class="btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all border-emerald-200 bg-white text-emerald-800">
+              5
+            </button>
+          </div>
+        </div>
+
+        <!-- Letter Selection Grid -->
+        <div>
+          <div class="flex justify-between items-center mb-1 px-1">
+            <span class="text-emerald-900 font-bold text-xs sm:text-sm">SELECT LETTERS</span>
+            <button onclick="toggleAllLetters()" id="btn-toggle-all" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg hover:bg-emerald-200">
+              DESELECT ALL
+            </button>
+          </div>
+          <div id="letters-selection-grid" class="grid grid-cols-6 sm:grid-cols-9 gap-1.5 max-h-32 sm:max-h-40 overflow-y-auto p-2 bg-emerald-50/60 rounded-2xl border border-emerald-200 custom-scrollbar">
+            <!-- Dynamically populated letters -->
+          </div>
+        </div>
+
+        <!-- Start Game SVG Button -->
+        <div class="pt-2 flex justify-center">
+          <button onclick="startGame()" class="btn-bounce bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 p-4 sm:p-5 rounded-full shadow-xl border-4 border-white text-white focus:outline-none ring-4 ring-amber-300/50">
+            <svg class="w-10 h-10 sm:w-12 sm:h-12 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- GAME HUD TOP BAR -->
+    <div id="game-hud" class="relative z-10 w-full p-3 sm:p-4 flex flex-col items-center space-y-2 pointer-events-none">
+      
+      <!-- Top Row Controls -->
+      <div class="w-full flex justify-between items-center pointer-events-auto">
+        
+        <!-- Home / Setup SVG Button -->
+        <button onclick="openSetup()" class="btn-bounce bg-white/90 p-2.5 sm:p-3 rounded-full shadow-lg border-2 border-emerald-400 text-emerald-800 hover:bg-white focus:outline-none">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+        </button>
+
+        <!-- Target Letter Display Box -->
+        <div class="bg-gradient-to-b from-amber-400 to-amber-500 border-4 border-white rounded-3xl px-8 py-2 sm:px-12 sm:py-3 shadow-xl flex items-center justify-center transform -translate-y-1">
+          <span id="target-letter-display" class="font-letter text-6xl sm:text-7xl font-bold letter-stroke-white leading-none">
+            A
+          </span>
+        </div>
+
+        <!-- Fullscreen SVG Button -->
+        <button onclick="toggleFullscreen()" class="btn-bounce bg-white/90 p-2.5 sm:p-3 rounded-full shadow-lg border-2 border-emerald-400 text-emerald-800 hover:bg-white focus:outline-none">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+          </svg>
+        </button>
+
+      </div>
+
+      <!-- Progress Bar & Stars Container -->
+      <div class="w-full max-w-xl bg-white/90 backdrop-blur-md rounded-2xl p-2 sm:p-2.5 shadow-md border-2 border-emerald-300 pointer-events-auto flex items-center space-x-3">
+        <!-- Progress Track -->
+        <div class="flex-1 bg-emerald-100 h-4 sm:h-5 rounded-full overflow-hidden p-0.5 border border-emerald-300">
+          <div id="progress-fill" class="bg-gradient-to-r from-emerald-400 to-amber-400 h-full rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+        </div>
+        <!-- Round Stars Indicator -->
+        <div id="stars-row" class="flex items-center space-x-1">
+          <!-- 5 SVG Stars generated dynamically -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BUSHES INTERACTIVE PLAY AREA -->
+    <div class="relative z-10 w-full flex-1 flex items-end justify-center pb-4 sm:pb-8 px-2">
+      <div id="bushes-container" class="w-full max-w-6xl flex items-end justify-around gap-2 sm:gap-6 translate-y-2 sm:translate-y-4">
+        <!-- Bushes dynamically rendered here -->
+      </div>
+    </div>
+
+    <!-- VERY GOOD / GAME OVER OVERLAY -->
+    <div id="celebration-screen" class="absolute inset-0 z-40 hidden flex flex-col items-center justify-center p-6 glass-celebration">
+      
+      <!-- Animated Stars Row -->
+      <div id="celebration-stars" class="flex space-x-2 sm:space-x-4 mb-6">
+        <!-- 5 Big Animated Stars -->
+      </div>
+
+      <!-- Celebration Text -->
+      <h2 class="text-5xl sm:text-7xl md:text-8xl font-bold letter-stroke-title mb-8 text-center tracking-wide">
+        Very good!
+      </h2>
+
+      <!-- Replay & Home SVG Buttons -->
+      <div class="flex items-center space-x-6 sm:space-x-8">
+        <!-- Play Again SVG Button -->
+        <button onclick="playAgain()" class="btn-bounce bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 p-5 sm:p-6 rounded-full shadow-2xl border-4 border-white text-white focus:outline-none ring-4 ring-amber-300/50">
+          <svg class="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+
+        <!-- Home SVG Button -->
+        <button onclick="openSetup()" class="btn-bounce bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 p-5 sm:p-6 rounded-full shadow-2xl border-4 border-white text-white focus:outline-none ring-4 ring-emerald-300/50">
+          <svg class="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // GAME CONFIGURATION & STATE
+    // ==========================================
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    let selectedLetters = [...ALPHABET];
+    let selectedCase = 'uppercase';     
+    let bushCount = 3;                  
+    
+    let currentQueue = [];
+    let currentRoundIndex = 0;
+    let totalRounds = 5;
+    let currentRoundTarget = '';
+    let currentBushItems = [];
+    let isIntroPlaying = false;
+    let isTransitioning = false;
+
+    const audioCache = {};
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      renderLetterSelectionGrid();
+      updateSetupUI();
+
+      const testImg = new Image();
+      testImg.onerror = () => {
+        document.getElementById('svg-bg-fallback').classList.remove('hidden');
+      };
+      testImg.src = 'Game Background.png';
+    });
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    }
+
+    // ==========================================
+    // TEACHER SETUP LOGIC
+    // ==========================================
+    function renderLetterSelectionGrid() {
+      const grid = document.getElementById('letters-selection-grid');
+      grid.innerHTML = '';
+      ALPHABET.forEach(let => {
+        const isSel = selectedLetters.includes(let);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => toggleLetter(let);
+        btn.className = `btn-bounce py-1.5 rounded-xl font-bold text-sm sm:text-base border transition-all ${
+          isSel 
+            ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' 
+            : 'bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-100'
+        }`;
+        btn.innerText = let;
+        grid.appendChild(btn);
+      });
+    }
+
+    function toggleLetter(let) {
+      if (selectedLetters.includes(let)) {
+        if (selectedLetters.length > 1) {
+          selectedLetters = selectedLetters.filter(l => l !== let);
+        }
+      } else {
+        selectedLetters.push(let);
+      }
+      renderLetterSelectionGrid();
+      updateToggleAllBtn();
+    }
+
+    function toggleAllLetters() {
+      if (selectedLetters.length === ALPHABET.length) {
+        selectedLetters = ['A'];
+      } else {
+        selectedLetters = [...ALPHABET];
+      }
+      renderLetterSelectionGrid();
+      updateToggleAllBtn();
+    }
+
+    function updateToggleAllBtn() {
+      const btn = document.getElementById('btn-toggle-all');
+      btn.innerText = selectedLetters.length === ALPHABET.length ? 'DESELECT ALL' : 'SELECT ALL';
+    }
+
+    function setCase(c) {
+      selectedCase = c;
+      ['up', 'low', 'both'].forEach(type => {
+        const btn = document.getElementById(`btn-case-${type}`);
+        const active = (type === 'up' && c === 'uppercase') || (type === 'low' && c === 'lowercase') || (type === 'both' && c === 'both');
+        btn.className = `btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all ${
+          active ? 'border-emerald-500 bg-emerald-500 text-white shadow-md' : 'border-emerald-200 bg-white text-emerald-800'
+        }`;
+      });
+    }
+
+    function setBushes(count) {
+      bushCount = count;
+      [2, 3, 4, 5].forEach(num => {
+        const btn = document.getElementById(`btn-bush-${num}`);
+        btn.className = `btn-bounce py-2 rounded-2xl border-2 font-bold text-lg sm:text-xl transition-all ${
+          num === count ? 'border-emerald-500 bg-emerald-500 text-white shadow-md' : 'border-emerald-200 bg-white text-emerald-800'
+        }`;
+      });
+    }
+
+    function updateSetupUI() {
+      setCase(selectedCase);
+      setBushes(bushCount);
+      updateToggleAllBtn();
+    }
+
+    function openSetup() {
+      playClickSound();
+      document.getElementById('cover-screen').classList.remove('hidden');
+      document.getElementById('celebration-screen').classList.add('hidden');
+    }
+
+    // ==========================================
+    // AUDIO ENGINE (FILES + SYNTH FALLBACKS)
+    // ==========================================
+    function getPhoneticFilename(letterUpper) {
+      return `${letterUpper.toUpperCase()}${letterUpper.toLowerCase()} sound.mp3`;
+    }
+
+    function playPhoneticSound(letterUpper, onEndCallback) {
+      getAudioContext();
+      const filename = getPhoneticFilename(letterUpper);
+
+      if (!audioCache[filename]) {
+        audioCache[filename] = new Audio(filename);
+      }
+
+      const audio = audioCache[filename];
+      audio.currentTime = 0;
+
+      let hasEnded = false;
+
+      const finishSound = () => {
+        if (!hasEnded) {
+          hasEnded = true;
+          if (onEndCallback) onEndCallback();
+        }
+      };
+
+      audio.onended = finishSound;
+
+      audio.play().catch(() => {
+        fallbackSpeechSound(letterUpper, finishSound);
+      });
+
+      // Safety timeout
+      setTimeout(finishSound, 1600);
+    }
+
+    function fallbackSpeechSound(letterUpper, onEnd) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(letterUpper.toLowerCase());
+        utterance.rate = 0.8;
+        utterance.pitch = 1.1;
+        utterance.onend = () => { if (onEnd) onEnd(); };
+        utterance.onerror = () => { playSynthTone(440, 0.3); if (onEnd) setTimeout(onEnd, 400); };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        playSynthTone(440, 0.3);
+        if (onEnd) setTimeout(onEnd, 400);
+      }
+    }
+
+    function playSynthTone(freq, duration) {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playClickSound() {
+      playSynthTone(600, 0.08);
+    }
+
+    function playCorrectSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.setValueAtTime(f, now + i * 0.08);
+          gain.gain.setValueAtTime(0.25, now + i * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.08);
+          osc.stop(now + i * 0.08 + 0.3);
+        });
+      } catch (e) {}
+    }
+
+    function playWrongSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.35);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      } catch (e) {}
+    }
+
+    // ==========================================
+    // GAME LOOP LOGIC
+    // ==========================================
+    function startGame() {
+      playClickSound();
+      document.getElementById('cover-screen').classList.add('hidden');
+      document.getElementById('celebration-screen').classList.add('hidden');
+
+      const pool = [...selectedLetters].sort(() => Math.random() - 0.5);
+      currentQueue = [];
+      for (let i = 0; i < totalRounds; i++) {
+        currentQueue.push(pool[i % pool.length]);
+      }
+
+      currentRoundIndex = 0;
+      setupRound();
+    }
+
+    function playAgain() {
+      startGame();
+    }
+
+    function formatLetter(letUpper) {
+      if (selectedCase === 'uppercase') return letUpper.toUpperCase();
+      if (selectedCase === 'lowercase') return letUpper.toLowerCase();
+      return `${letUpper.toUpperCase()}${letUpper.toLowerCase()}`;
+    }
+
+    function setupRound() {
+      isTransitioning = false;
+      isIntroPlaying = true;
+      currentRoundTarget = currentQueue[currentRoundIndex];
+
+      document.getElementById('target-letter-display').innerText = formatLetter(currentRoundTarget);
+
+      const progressPercent = (currentRoundIndex / currentQueue.length) * 100;
+      document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+
+      renderHudStars();
+
+      const distractorsPool = ALPHABET.filter(l => l !== currentRoundTarget);
+      const shuffledDistractors = distractorsPool.sort(() => Math.random() - 0.5);
+      
+      currentBushItems = [currentRoundTarget];
+      for (let i = 0; i < bushCount - 1; i++) {
+        currentBushItems.push(shuffledDistractors[i % shuffledDistractors.length]);
+      }
+      currentBushItems.sort(() => Math.random() - 0.5);
+
+      renderBushes();
+
+      setTimeout(() => {
+        playIntroSequence(0);
+      }, 500);
+    }
+
+    function renderHudStars() {
+      const container = document.getElementById('stars-row');
+      container.innerHTML = '';
+      for (let i = 0; i < totalRounds; i++) {
+        const isFilled = i < currentRoundIndex;
+        container.innerHTML += `
+          <svg class="w-5 h-5 sm:w-6 sm:h-6 ${isFilled ? 'text-amber-400 fill-amber-400' : 'text-slate-300 fill-slate-300'}" viewBox="0 0 24 24">
+            <path d="M12 2l2.9 6.26 6.9.62-5.2 4.67 1.52 6.75L12 16.88l-6.12 3.42 1.52-6.75-5.2-4.67 6.9-.62L12 2z" stroke-linejoin="round"/>
+          </svg>
+        `;
+      }
+    }
+
+    function renderBushes() {
+      const container = document.getElementById('bushes-container');
+      container.className = 'w-full max-w-6xl flex items-end justify-around gap-2 sm:gap-6 translate-y-2 sm:translate-y-4';
+      container.innerHTML = '';
+
+      currentBushItems.forEach((letUpper, idx) => {
+        const bushWrapper = document.createElement('div');
+        bushWrapper.id = `bush-wrapper-${idx}`;
+        bushWrapper.className = 'relative flex flex-col items-center group cursor-pointer flex-1 max-w-[220px] sm:max-w-[280px] md:max-w-[340px]';
+        
+        bushWrapper.innerHTML = `
+          <!-- Hidden Revealed Letter Behind Bush -->
+          <span id="revealed-letter-${idx}" class="absolute -top-12 sm:-top-16 font-letter text-5xl sm:text-7xl font-bold letter-stroke-white opacity-0 transition-all duration-300 transform translate-y-4 pointer-events-none">
+            ${formatLetter(letUpper)}
+          </span>
+
+          <!-- Bush PNG Graphic -->
+          <div id="bush-img-box-${idx}" onclick="handleBushClick(${idx})" class="bush-box w-full origin-bottom hover:scale-105 active:scale-95">
+            <img src="bush.png" alt="Bush" class="w-full h-auto drop-shadow-xl pointer-events-auto" 
+                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-32 sm:h-44 bg-emerald-500 rounded-full border-4 border-emerald-700 shadow-xl flex items-center justify-center\'><span class=\'text-white text-3xl\'>🌿</span></div>';" />
+          </div>
+
+          <!-- Speaker SVG Button Below Bush -->
+          <button onclick="handleSpeakerClick(event, ${idx})" class="btn-bounce mt-2 sm:mt-4 bg-amber-400 hover:bg-amber-300 text-amber-950 p-2.5 sm:p-3.5 rounded-full shadow-lg border-2 border-white focus:outline-none pointer-events-auto">
+            <svg class="w-5 h-5 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+          </button>
+        `;
+
+        container.appendChild(bushWrapper);
+      });
+    }
+
+    // Sequential audio intro: Bush gets bigger with yellow glow, then shrinks back
+    function playIntroSequence(index) {
+      const container = document.getElementById('bushes-container');
+
+      document.querySelectorAll('.bush-box').forEach(el => el.classList.remove('is-playing'));
+
+      if (index >= currentBushItems.length) {
+        isIntroPlaying = false;
+        if (container) container.classList.remove('is-playing-audio');
+        return;
+      }
+
+      if (container) container.classList.add('is-playing-audio');
+
+      const targetBush = document.getElementById(`bush-img-box-${index}`);
+      if (targetBush) {
+        targetBush.classList.add('is-playing');
+      }
+
+      playPhoneticSound(currentBushItems[index], () => {
+        if (targetBush) {
+          targetBush.classList.remove('is-playing');
+        }
+        setTimeout(() => {
+          playIntroSequence(index + 1);
+        }, 350);
+      });
+    }
+
+    function handleSpeakerClick(event, idx) {
+      event.stopPropagation();
+      if (isTransitioning) return;
+      playClickSound();
+
+      const container = document.getElementById('bushes-container');
+      const targetBush = document.getElementById(`bush-img-box-${idx}`);
+      
+      document.querySelectorAll('.bush-box').forEach(el => el.classList.remove('is-playing'));
+      if (container) container.classList.add('is-playing-audio');
+      if (targetBush) targetBush.classList.add('is-playing');
+
+      playPhoneticSound(currentBushItems[idx], () => {
+        if (targetBush) targetBush.classList.remove('is-playing');
+        if (container) container.classList.remove('is-playing-audio');
+      });
+    }
+
+    function handleBushClick(idx) {
+      if (isTransitioning || isIntroPlaying) return;
+
+      const chosenLetter = currentBushItems[idx];
+      const wrapper = document.getElementById(`bush-wrapper-${idx}`);
+      const bushImgBox = document.getElementById(`bush-img-box-${idx}`);
+      const revealedLetter = document.getElementById(`revealed-letter-${idx}`);
+
+      if (chosenLetter === currentRoundTarget) {
+        // CORRECT CHOICE
+        isTransitioning = true;
+        playCorrectSound();
+
+        if (revealedLetter) {
+          revealedLetter.classList.remove('opacity-0', 'translate-y-4');
+          revealedLetter.classList.add('opacity-100', '-translate-y-2');
+        }
+
+        if (bushImgBox) {
+          bushImgBox.classList.add('animate-rustle');
+        }
+
+        setTimeout(() => {
+          advanceRound(true);
+        }, 1400);
+
+      } else {
+        // WRONG CHOICE
+        playWrongSound();
+        if (wrapper) {
+          wrapper.classList.add('animate-wrong');
+          setTimeout(() => wrapper.classList.remove('animate-wrong'), 500);
+        }
+
+        if (!currentQueue.includes(currentRoundTarget, currentRoundIndex + 1)) {
+          currentQueue.push(currentRoundTarget);
+        }
+      }
+    }
+
+    function advanceRound(wasCorrect) {
+      currentRoundIndex++;
+
+      if (currentRoundIndex >= currentQueue.length) {
+        showCelebration();
+      } else {
+        setupRound();
+      }
+    }
+
+    function showCelebration() {
+      document.getElementById('progress-fill').style.width = '100%';
+      document.getElementById('celebration-screen').classList.remove('hidden');
+
+      const starsContainer = document.getElementById('celebration-stars');
+      starsContainer.innerHTML = '';
+      for (let i = 0; i < 5; i++) {
+        starsContainer.innerHTML += `
+          <svg class="w-12 h-12 sm:w-20 sm:h-20 text-amber-400 fill-amber-400 drop-shadow-lg animate-star" style="animation-delay: ${i * 0.1}s;" viewBox="0 0 24 24">
+            <path d="M12 2l2.9 6.26 6.9.62-5.2 4.67 1.52 6.75L12 16.88l-6.12 3.42 1.52-6.75-5.2-4.67 6.9-.62L12 2z" stroke-linejoin="round"/>
+          </svg>
+        `;
+      }
+
+      playCorrectSound();
+    }
+  </script>
+</body>
+</html>
